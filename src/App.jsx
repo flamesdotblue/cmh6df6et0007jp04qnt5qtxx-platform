@@ -1,28 +1,56 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react';
+import Hero from './components/Hero';
+import Benefits from './components/Benefits';
+import Features from './components/Features';
+import Testimonial from './components/Testimonial';
+import PricingTeaser from './components/PricingTeaser';
+import FAQ from './components/FAQ';
+import Footer from './components/Footer';
+import LeadForm from './components/LeadForm';
+import { initAnalytics, trackEvent, trackPageView } from './utils/analytics';
+import { captureInitialUTM } from './utils/utm';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [intent, setIntent] = useState('trial'); // 'trial' | 'demo'
+
+  // Simple A/B variant persisted per visitor
+  const variant = useMemo(() => {
+    const key = 'abVariant_v1';
+    const stored = localStorage.getItem(key);
+    if (stored) return stored;
+    const v = Math.random() < 0.5 ? 'A' : 'B';
+    localStorage.setItem(key, v);
+    return v;
+  }, []);
+
+  useEffect(() => {
+    initAnalytics(import.meta.env.VITE_GA_ID);
+    captureInitialUTM();
+    trackPageView(window.location.pathname);
+  }, []);
+
+  const openLead = (type) => {
+    setIntent(type);
+    setLeadModalOpen(true);
+    trackEvent('cta_click', { type, variant });
+  };
+
+  const closeLead = () => setLeadModalOpen(false);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">
-          Vibe Coding Platform
-        </h1>
-        <p className="text-gray-600 mb-6">
-          Your AI-powered development environment
-        </p>
-        <div className="text-center">
-          <button
-            onClick={() => setCount(count + 1)}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded"
-          >
-            Count is {count}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
+    <div className="min-h-screen bg-[#0b0b0f] text-white">
+      <Hero variant={variant} onPrimary={() => openLead('trial')} onSecondary={() => openLead('demo')} />
+      <main>
+        <Benefits onCta={() => openLead('trial')} />
+        <Features />
+        <Testimonial />
+        <PricingTeaser onCta={() => openLead('trial')} onDemo={() => openLead('demo')} />
+        <FAQ />
+      </main>
+      <Footer />
 
-export default App
+      <LeadForm open={leadModalOpen} onClose={closeLead} variant={variant} intent={intent} />
+    </div>
+  );
+}
